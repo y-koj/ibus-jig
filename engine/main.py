@@ -2,7 +2,7 @@
 #
 # ibus-tmpl - The Input Bus template project
 #
-# Copyright (c) 2007-2011 Peng Huang <shawn.p.huang@gmail.com>
+# Copyright (c) 2007-2012 Peng Huang <shawn.p.huang@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,37 +18,50 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
+from gi.repository import IBus
+from gi.repository import GLib
+from gi.repository import GObject
+
 import os
 import sys
 import getopt
-import ibus
-import factory
-import gobject
 import locale
+
+from engine import EngineEnchant
 
 class IMApp:
     def __init__(self, exec_by_ibus):
-        self.__component = ibus.Component("org.freedesktop.IBus.EnchantPython",
-                                          "Enchant Python Component",
-                                          "0.1.0",
-                                          "GPL",
-                                          "Peng Huang <shawn.p.huang@gmail.com>")
-        self.__component.add_engine("enchant-python",
-                                    "enchant python",
-                                    "English Enchant",
-                                    "en",
-                                    "GPL",
-                                    "Peng Huang <shawn.p.huang@gmail.com>",
-                                    "",
-                                    "en")
-        self.__mainloop = gobject.MainLoop()
-        self.__bus = ibus.Bus()
+        engine_name = "enchant python" if exec_by_ibus else "enchant python (debug)"
+        self.__component = \
+                IBus.Component.new("org.freedesktop.IBus.EnchantPython",
+                                   "Enchant Python Component",
+                                   "0.1.0",
+                                   "GPL",
+                                   "Peng Huang <shawn.p.huang@gmail.com>",
+                                   "http://example.com",
+                                   "/usr/bin/exec",
+                                   "ibus-enchant")
+        engine = IBus.EngineDesc.new("enchant-python",
+                                     engine_name,
+                                     "English Enchant",
+                                     "en",
+                                     "GPL",
+                                     "Peng Huang <shawn.p.huang@gmail.com>",
+                                     "",
+                                     "us")
+        self.__component.add_engine(engine)
+        self.__mainloop = GLib.MainLoop()
+        self.__bus = IBus.Bus()
         self.__bus.connect("disconnected", self.__bus_disconnected_cb)
-        self.__factory = factory.EngineFactory(self.__bus)
+        self.__factory = IBus.Factory.new(self.__bus.get_connection())
+        self.__factory.add_engine("enchant-python",
+                GObject.type_from_name("EngineEnchant"))
         if exec_by_ibus:
             self.__bus.request_name("org.freedesktop.IBus.EnchantPython", 0)
         else:
             self.__bus.register_component(self.__component)
+            self.__bus.set_global_engine_async(
+                    "enchant-python", -1, None, None, None)
 
     def run(self):
         self.__mainloop.run()
@@ -58,10 +71,11 @@ class IMApp:
 
 
 def launch_engine(exec_by_ibus):
+    IBus.init()
     IMApp(exec_by_ibus).run()
 
 def print_help(out, v = 0):
-    print >> out, "-i, --ibus             executed by ibus."
+    print >> out, "-i, --ibus             executed by IBus."
     print >> out, "-h, --help             show this message."
     print >> out, "-d, --daemonize        daemonize ibus"
     sys.exit(v)

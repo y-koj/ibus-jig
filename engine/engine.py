@@ -2,7 +2,7 @@
 #
 # ibus-tmpl - The Input Bus template project
 #
-# Copyright (c) 2007-2011 Peng Huang <shawn.p.huang@gmail.com>
+# Copyright (c) 2007-2012 Peng Huang <shawn.p.huang@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,27 +18,31 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-import gobject
-import pango
 import enchant
-import ibus
-from ibus import keysyms
-from ibus import modifier
 
-class Engine(ibus.EngineBase):
+from gi.repository import GLib
+from gi.repository import IBus
+from gi.repository import Pango
+
+keysyms = IBus
+
+class EngineEnchant(IBus.Engine):
+    __gtype_name__ = 'EngineEnchant'
     __dict = enchant.Dict("en")
 
-    def __init__(self, bus, object_path):
-        super(Engine, self).__init__(bus, object_path)
+    def __init__(self):
+        super(EngineEnchant, self).__init__()
         self.__is_invalidate = False
         self.__preedit_string = u""
-        self.__lookup_table = ibus.LookupTable()
-        self.__prop_list = ibus.PropList()
-        self.__prop_list.append(ibus.Property(u"test", icon = u"ibus-locale"))
+        self.__lookup_table = IBus.LookupTable.new(10, 0, True, True)
+        self.__prop_list = IBus.PropList()
+        self.__prop_list.append(IBus.Property(key="test", icon="ibus-local"))
+        print "Create EngineEnchant OK"
 
-    def process_key_event(self, keyval, keycode, state):
+    def do_process_key_event(self, keyval, keycode, state):
+        print "process_key_event(%04x, %04x, %04x)" % (keyval, keycode, state)
         # ignore key release events
-        is_press = ((state & modifier.RELEASE_MASK) == 0)
+        is_press = ((state & IBus.ModifierType.RELEASE_MASK) == 0)
         if not is_press:
             return False
 
@@ -60,7 +64,8 @@ class Engine(ibus.EngineBase):
                 else:
                     self.__commit_string(self.__preedit_string)
                 return False
-            elif keyval >= keysyms._1 and keyval <= keysyms._9:
+            elif keyval >= 49 and keyval <= 57:
+                #keyval >= keysyms._1 and keyval <= keysyms._9
                 index = keyval - keysyms._1
                 candidates = self.__lookup_table.get_canidates_in_current_page()
                 if index >= len(candidates):
@@ -84,7 +89,7 @@ class Engine(ibus.EngineBase):
                 return True
         if keyval in xrange(keysyms.a, keysyms.z + 1) or \
             keyval in xrange(keysyms.A, keysyms.Z + 1):
-            if state & (modifier.CONTROL_MASK | modifier.ALT_MASK) == 0:
+            if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.MOD1_MASK) == 0:
                 self.__preedit_string += unichr(keyval)
                 self.__invalidate()
                 return True
@@ -98,50 +103,57 @@ class Engine(ibus.EngineBase):
         if self.__is_invalidate:
             return
         self.__is_invalidate = True
-        gobject.idle_add(self.__update, priority = gobject.PRIORITY_LOW)
+        GLib.idle_add(self.__update)
 
 
-    def page_up(self):
+    def do_page_up(self):
         if self.__lookup_table.page_up():
             self.page_up_lookup_table()
             return True
         return False
 
-    def page_down(self):
+    def do_page_down(self):
         if self.__lookup_table.page_down():
             self.page_down_lookup_table()
             return True
         return False
 
-    def cursor_up(self):
+    def do_cursor_up(self):
         if self.__lookup_table.cursor_up():
             self.cursor_up_lookup_table()
             return True
         return False
 
-    def cursor_down(self):
+    def do_cursor_down(self):
         if self.__lookup_table.cursor_down():
             self.cursor_down_lookup_table()
             return True
         return False
 
     def __commit_string(self, text):
-        self.commit_text(ibus.Text(text))
+        self.commit_text(IBus.Text.new_from_string(text))
         self.__preedit_string = u""
         self.__update()
 
     def __update(self):
         preedit_len = len(self.__preedit_string)
-        attrs = ibus.AttrList()
-        self.__lookup_table.clean()
+        attrs = IBus.AttrList()
+        self.__lookup_table.clear()
         if preedit_len > 0:
             if not self.__dict.check(self.__preedit_string):
-                attrs.append(ibus.AttributeForeground(0xff0000, 0, preedit_len))
+                attrs.append(IBus.Attribute.new(IBus.AttrType.FOREGROUND,
+                        0xff0000, 0, preedit_len))
                 for text in self.__dict.suggest(self.__preedit_string):
-                    self.__lookup_table.append_candidate(ibus.Text(text))
-        self.update_auxiliary_text(ibus.Text(self.__preedit_string, attrs), preedit_len > 0)
-        attrs.append(ibus.AttributeUnderline(pango.UNDERLINE_SINGLE, 0, preedit_len))
-        self.update_preedit_text(ibus.Text(self.__preedit_string, attrs), preedit_len, preedit_len > 0)
+                    self.__lookup_table.append_candidate(IBus.Text.new_from_string(text))
+        text = IBus.Text.new_from_string(self.__preedit_string)
+        text.set_attributes(attrs)
+        self.update_auxiliary_text(text, preedit_len > 0)
+
+        attrs.append(IBus.Attribute.new(IBus.AttrType.UNDERLINE,
+                IBus.AttrUnderline.SINGLE, 0, preedit_len))
+        text = IBus.Text.new_from_string(self.__preedit_string)
+        text.set_attributes(attrs)
+        self.update_preedit_text(text, preedit_len, preedit_len > 0)
         self.__update_lookup_table()
         self.__is_invalidate = False
 
@@ -150,15 +162,16 @@ class Engine(ibus.EngineBase):
         self.update_lookup_table(self.__lookup_table, visible)
 
 
-    def focus_in(self):
+    def do_focus_in(self):
+        print "focus_in"
         self.register_properties(self.__prop_list)
 
-    def focus_out(self):
-        pass
+    def do_focus_out(self):
+        print "focus_out"
 
-    def reset(self):
-        pass
+    def do_reset(self):
+        print "reset"
 
-    def property_activate(self, prop_name):
+    def do_property_activate(self, prop_name):
         print "PropertyActivate(%s)" % prop_name
 
