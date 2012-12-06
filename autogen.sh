@@ -10,4 +10,4 @@ automake --add-missing --copy
 autoconf
 export CFLAGS="-g -O0"
 export CXXFLAGS="$CFLAGS"
-./configure --enable-maintainer-mode $*
+./configure --enable-maintainer-mode "$@"
