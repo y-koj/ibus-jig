@@ -3,7 +3,7 @@
 <component>
 	<name>org.freedesktop.IBus.EnchantPython</name>
 	<description>Enchant Python Component</description>
-	<exec>${libexecdir}/ibus-engine-enchant --ibus</exec>
+	<exec>${libexecdir}/ibus-engine-enchant-python --ibus</exec>
 	<version>@VERSION@</version>
 	<author>Peng Huang &lt;shawn.p.huang@gmail.com&gt;</author>
 	<license>GPL</license>
@@ -16,7 +16,7 @@
 			<language>en</language>
 			<license>GPL</license>
 			<author>Peng Huang &lt;shawn.p.huang@gmail.com&gt;</author>
-			<icon>${pkgdatadir}/icons/ibus-enchant.png</icon>
+			<icon>${pkgdatadir}/icons/ibus-enchant.svg</icon>
 			<layout>us</layout>
 			<longname>Enchant</longname>
 			<description>Enchant Input Method</description>

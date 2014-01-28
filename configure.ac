@@ -2,7 +2,7 @@
 #
 # ibus-tmpl - The Input Bus template project
 #
-# Copyright (c) 2007-2011 Peng Huang <shawn.p.huang@gmail.com>
+# Copyright (c) 2007-2014 Peng Huang <shawn.p.huang@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -62,6 +62,13 @@ PKG_CHECK_MODULES(ENCHANT, [
 ])
 
 
+# Define python version
+AC_ARG_WITH(python,
+    AS_HELP_STRING([--with-python[=PATH]],
+        [Select python2 or python3]),
+    [PYTHON=$with_python], []
+)
+
 #check python
 AM_PATH_PYTHON([2.5])
 
@@ -70,8 +77,7 @@ GETTEXT_PACKAGE="$PACKAGE_NAME"
 AC_SUBST(GETTEXT_PACKAGE)
 AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [Define to the read-only architecture-independent data directory.])
 
-AM_GNU_GETTEXT([external])
-AM_GNU_GETTEXT_VERSION(0.16.1)
+AM_GLIB_GNU_GETTEXT
 
 
 # OUTPUT files
@@ -81,7 +87,7 @@ ibus-tmpl.spec
 src/Makefile
 src/enchant.xml.in
 engine/Makefile
-engine/ibus-engine-enchant
+engine/ibus-engine-enchant-python
 engine/enchant-python.xml.in
 icons/Makefile
 m4/Makefile

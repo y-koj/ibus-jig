@@ -2,7 +2,7 @@
 #
 # ibus-tmpl - The Input Bus template project
 #
-# Copyright (c) 2007-2012 Peng Huang <shawn.p.huang@gmail.com>
+# Copyright (c) 2007-2014 Peng Huang <shawn.p.huang@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# for python2
+from __future__ import print_function
 
 import enchant
 
@@ -33,14 +36,14 @@ class EngineEnchant(IBus.Engine):
     def __init__(self):
         super(EngineEnchant, self).__init__()
         self.__is_invalidate = False
-        self.__preedit_string = u""
+        self.__preedit_string = ""
         self.__lookup_table = IBus.LookupTable.new(10, 0, True, True)
         self.__prop_list = IBus.PropList()
         self.__prop_list.append(IBus.Property(key="test", icon="ibus-local"))
-        print "Create EngineEnchant OK"
+        print("Create EngineEnchant OK")
 
     def do_process_key_event(self, keyval, keycode, state):
-        print "process_key_event(%04x, %04x, %04x)" % (keyval, keycode, state)
+        print("process_key_event(%04x, %04x, %04x)" % (keyval, keycode, state))
         # ignore key release events
         is_press = ((state & IBus.ModifierType.RELEASE_MASK) == 0)
         if not is_press:
@@ -51,7 +54,7 @@ class EngineEnchant(IBus.Engine):
                 self.__commit_string(self.__preedit_string)
                 return True
             elif keyval == keysyms.Escape:
-                self.__preedit_string = u""
+                self.__preedit_string = ""
                 self.__update()
                 return True
             elif keyval == keysyms.BackSpace:
@@ -87,10 +90,10 @@ class EngineEnchant(IBus.Engine):
                 return True
             elif keyval == keysyms.Left or keyval == keysyms.Right:
                 return True
-        if keyval in xrange(keysyms.a, keysyms.z + 1) or \
-            keyval in xrange(keysyms.A, keysyms.Z + 1):
+        if keyval in range(keysyms.a, keysyms.z + 1) or \
+            keyval in range(keysyms.A, keysyms.Z + 1):
             if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.MOD1_MASK) == 0:
-                self.__preedit_string += unichr(keyval)
+                self.__preedit_string += chr(keyval)
                 self.__invalidate()
                 return True
         else:
@@ -132,7 +135,7 @@ class EngineEnchant(IBus.Engine):
 
     def __commit_string(self, text):
         self.commit_text(IBus.Text.new_from_string(text))
-        self.__preedit_string = u""
+        self.__preedit_string = ""
         self.__update()
 
     def __update(self):
@@ -163,15 +166,15 @@ class EngineEnchant(IBus.Engine):
 
 
     def do_focus_in(self):
-        print "focus_in"
+        print("focus_in")
         self.register_properties(self.__prop_list)
 
     def do_focus_out(self):
-        print "focus_out"
+        print("focus_out")
 
     def do_reset(self):
-        print "reset"
+        print("reset")
 
     def do_property_activate(self, prop_name):
-        print "PropertyActivate(%s)" % prop_name
+        print("PropertyActivate(%s)" % prop_name)
 

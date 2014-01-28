@@ -2,7 +2,7 @@
 #
 # ibus-tmpl - The Input Bus template project
 #
-# Copyright (c) 2007-2012 Peng Huang <shawn.p.huang@gmail.com>
+# Copyright (c) 2007-2014 Peng Huang <shawn.p.huang@gmail.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ engine_enchant_PYTHON = \
 	$(NULL)
 engine_enchantdir = $(datadir)/ibus-tmpl
 
-bin_SCRIPTS = ibus-engine-enchant
+libexec_SCRIPTS = ibus-engine-enchant-python
 
 component_DATA = enchant-python.xml
 componentdir = $(datadir)/ibus/component
@@ -34,7 +34,7 @@ CLEANFILES = \
 	$(NULL)
 
 EXTRA_DIST = \
-	ibus-engine-enchant.in \
+	ibus-engine-enchant-python.in \
 	enchant-python.xml.in.in \
 	$(NULL)
 
