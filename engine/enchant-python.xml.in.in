@@ -18,7 +18,7 @@
 			<author>Peng Huang &lt;shawn.p.huang@gmail.com&gt;</author>
 			<icon>${pkgdatadir}/icons/ibus-enchant.svg</icon>
 			<layout>us</layout>
-			<longname>Enchant</longname>
+			<longname>Enchant (Python)</longname>
 			<description>Enchant Input Method</description>
 			<rank>0</rank>
 		</engine>
