@@ -31,6 +31,7 @@ componentdir = $(datadir)/ibus/component
 
 CLEANFILES = \
 	*.pyc \
+	enchant-python.xml \
 	$(NULL)
 
 EXTRA_DIST = \

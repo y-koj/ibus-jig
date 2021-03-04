@@ -28,9 +28,12 @@ from gi.repository import GObject
 import os
 import sys
 import getopt
+import gettext
 import locale
 
 from engine import EngineEnchant
+
+_ = lambda a: gettext.dgettext('ibus-tmpl', a)
 
 class IMApp:
     def __init__(self, exec_by_ibus):
@@ -78,6 +81,7 @@ def launch_engine(exec_by_ibus):
     IMApp(exec_by_ibus).run()
 
 def print_help(v = 0):
+    print(_("Hello"));
     print("-i, --ibus             executed by IBus.")
     print("-h, --help             show this message.")
     print("-d, --daemonize        daemonize ibus")
