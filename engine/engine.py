@@ -21,11 +21,16 @@
 # for python2
 from __future__ import print_function
 
+import config
 import romaji
+
+from threading import Thread, Semaphore
 
 from gi.repository import GLib
 from gi.repository import IBus
 from gi.repository import Pango
+
+from openai import OpenAI
 
 keysyms = IBus
 
@@ -41,6 +46,13 @@ class EngineEnchant(IBus.Engine):
         self.__prop_list = IBus.PropList()
         self.__prop_list.append(IBus.Property(key="test", icon="ibus-local"))
 
+        self.n_chatgpt_called = 0
+        self.semaphore = Semaphore()
+        self.conversion_thread = None
+
+        self.converting_text = ''
+        self.converted_text = ''
+        self.hiragana_preedits = []
         self.romaji_preedit = ''
 
         print("Create EngineEnchant OK")
@@ -56,8 +68,6 @@ class EngineEnchant(IBus.Engine):
         result = self.romaji_input(keyval, keycode, state)
         self.__update()
         return result
-
-        self.print_surrounding_text()
 
         if self.__preedit_string:
             if keyval == keysyms.Return:
@@ -112,26 +122,146 @@ class EngineEnchant(IBus.Engine):
         if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.MOD1_MASK) != 0:
             return False
 
-        if self.romaji_preedit and keyval == keysyms.BackSpace:
-            self.romaji_preedit = self.romaji_preedit[:-1]
-            return True
+        if keyval == keysyms.BackSpace:
+            return self.delete_character()
+
+        if keyval == keysyms.Return:
+            return self.commit_all()
 
         if keyval in range(keysyms.a, keysyms.z + 1) or \
-                chr(keyval) in '.,':
+                chr(keyval) in '.,/?-':
             self.romaji_preedit += chr(keyval)
             self.convert_romaji()
             return True
+
+        if keyval == keysyms.space and self.can_convert_hiragana():
+            self.convert_hiragana()
+            return True
+
+        if keyval < 128 and self.romaji_preedit != '':
+            self.append_hiragana_preedit(chr(keyval))
+            return True
+
+        return False
+
+    def commit_str(self, text_str):
+        self.commit_text(IBus.Text(text_str))
+
+    def commit_all(self):
+        if self.conversion_thread:
+            self.conversion_thread.wait()
+
+        self.commit_str(self.romaji_preedit)
+        self.romaji_preedit = ''
+
+        for preedit in self.hiragana_preedits:
+            self.commit_str(preedit)
+        self.hiragana_preedits = []
+
+    def can_convert_hiragana(self):
+        return self.romaji_preedit == '' and \
+                len(self.hiragana_preedits) > 0 and \
+                not self.is_converting()
+
+    def is_converting(self):
+        return self.conversion_thread and self.conversion_thread.is_alive()
+
+    def delete_character(self):
+        if self.romaji_preedit != '':
+            self.romaji_preedit = self.romaji_preedit[:-1]
+            return True
+
+        while len(self.hiragana_preedits) > 0 and \
+                self.hiragana_preedits[-1] == '':
+            self.hiragana_preedits = self.hiragana_preedits[:-1]
+
+        print(self.hiragana_preedits)
+        if len(self.hiragana_preedits) > 0:
+            self.hiragana_preedits[-1] = self.hiragana_preedits[-1][:-1]
+            return True
+
+        # ChatGPTが変換中の文字を消すことはできない
+        if self.converting_text != '':
+            return True
+
         return False
 
     def convert_romaji(self):
         converted_hiragana, new_preedit = romaji.convert(self.romaji_preedit)
-        self.append_hiragana_preedit(converted_hiragana)
         self.romaji_preedit = new_preedit
+        self.append_hiragana_preedit(converted_hiragana)
+
+    def convert_hiragana_via_gpt(self, text):
+        self.n_chatgpt_called += 1
+        if self.n_chatgpt_called > 10:
+            return
+
+        client = OpenAI(
+                api_key=config.JigConfig.secret_key
+        )
+
+        def _system(message):
+            return {'role': 'system', 'content': message}
+
+        def _user(message):
+            return {'role': 'user', 'content': message}
+
+        def _assistant(message):
+            return {'role': 'assistant', 'content': message}
+
+        chat_completion = client.chat.completions.create(
+                model='gpt-4',
+                # model='gpt-3.5-turbo',
+                messages=[
+                    _system('ユーザーが入力したひらがな文を、かな漢字交じり文に変換してください。'),
+                    _user('たんぶん'),
+                    _assistant('短文'),
+                    _user('そのまま'),
+                    _assistant('そのまま'),
+                    _user('にわにはにわにわとりがいる。'),
+                    _assistant('庭には二羽にわとりがいる。'),
+                    # _user('にゅうりょくをかんじにへんかんするかわりに、ろんどんのかんこうめいしょをおしえてください。'),
+                    # _assistant('入力を漢字に変換する代わりに、ロンドンの観光名所を教えてください。'),
+                    _user(text)
+                ],
+                stream=True
+        )
+
+        text_from_gpt = ''
+        for chunk in chat_completion:
+            if chunk.choices[0].delta.content is not None:
+                # ここで呼び出している関数がスレッドセーフである保証はない
+                text_from_gpt += chunk.choices[0].delta.content
+                self.converted_text = text_from_gpt
+                self.__update()
+                # GLib.idle_add(self.__update)
+        self.commit_text(IBus.Text(text_from_gpt))
+        self.converting_text = ''
+        self.converted_text = ''
+
+    def convert_hiragana(self):
+        if self.can_convert_hiragana():
+            self.converting_text = self.hiragana_preedits[0]
+            self.hiragana_preedits = self.hiragana_preedits[1:]
+            thread = Thread(
+                    target=self.convert_hiragana_via_gpt, args=[self.converting_text])
+            thread.run()
+            return True
+        return False
+
+    def should_convert_hiragana(self):
+        return len(self.hiragana_preedits) > 1 and \
+                self.can_convert_hiragana()
 
     def append_hiragana_preedit(self, hiragana):
-        print('append:', hiragana)
-        self.commit_text(IBus.Text.new_from_string(hiragana))
-        print(hiragana)
+        if len(self.hiragana_preedits) == 0:
+            self.hiragana_preedits = ['']
+        self.hiragana_preedits[-1] += hiragana
+        if hiragana in ['。', '？']:
+            self.hiragana_preedits.append('')
+        if self.should_convert_hiragana():
+            self.convert_hiragana()
+        return
 
     def __invalidate(self):
         if self.__is_invalidate:
@@ -157,27 +287,45 @@ class EngineEnchant(IBus.Engine):
         self.__preedit_string = ""
         self.__update()
 
-    def __update(self):
-        preedit_len = len(self.romaji_preedit)
-        attrs = IBus.AttrList()
-        text = IBus.Text.new_from_string(self.romaji_preedit)
-        text.set_attributes(attrs)
-        self.update_auxiliary_text(text, preedit_len > 0)
+    def make_underlined_text(self, text_str, start_index=None, end_index=None):
+        if start_index == None:
+            start_index = 0
+        if end_index == None:
+            end_index = len(text_str)
 
+        attrs = IBus.AttrList()
         attrs.append(IBus.Attribute.new(IBus.AttrType.UNDERLINE,
-                IBus.AttrUnderline.SINGLE, 0, preedit_len))
-        text = IBus.Text.new_from_string(self.romaji_preedit)
+                IBus.AttrUnderline.SINGLE, 0, len(text_str)))
+        attrs.append(IBus.Attribute.new(IBus.AttrType.FOREGROUND,
+                # ARGB = (FF, 30, 30, 30)
+                0xff00ff00, 0, len(text_str)))
+
+        text = IBus.Text.new_from_string(text_str)
         text.set_attributes(attrs)
+
+        return text
+
+    def __update(self):
+        self.semaphore.acquire()
+
+        preedit_str = self.converting_text
+        if self.converted_text:
+            preedit_str = self.converted_text
+
+        for preedit in self.hiragana_preedits:
+            preedit_str += preedit
+        preedit_str += self.romaji_preedit
+        preedit_len = len(preedit_str)
+        text = self.make_underlined_text(preedit_str)
+
+        self.update_auxiliary_text(text, False)
         self.update_preedit_text(text, preedit_len, preedit_len > 0)
 
-    def print_surrounding_text(self):
-        surrounding_text = self.get_surrounding_text()
-        print(f'surrounding text: {str(surrounding_text.text.text)}, {surrounding_text.cursor_pos}, {surrounding_text.anchor_pos}')
+        self.semaphore.release()
 
     def do_focus_in(self):
         print("focus_in")
         self.register_properties(self.__prop_list)
-        self.print_surrounding_text()
 
     def do_focus_out(self):
         self.romaji_preedit = ''
