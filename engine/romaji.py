@@ -1,0 +1,200 @@
+romaji_table = {
+        'a': 'あ',
+        'i': 'い',
+        'u': 'う',
+        'e': 'え',
+        'o': 'お',
+
+        'ka': 'か',
+        'ki': 'き',
+        'ku': 'く',
+        'ke': 'け',
+        'ko': 'こ',
+        'kya': 'きゃ',
+        'kyu': 'きゅ',
+        'kye': 'きぇ',
+        'kyo': 'きょ',
+
+        'ga': 'が',
+        'gi': 'ぎ',
+        'gu': 'ぐ',
+        'ge': 'げ',
+        'go': 'ご',
+        'gya': 'ぎゃ',
+        'gyu': 'ぎゅ',
+        'gye': 'ぎぇ',
+        'gyo': 'ぎょ',
+
+        'sa': 'さ',
+        'si': 'し',
+        'su': 'す',
+        'se': 'せ',
+        'so': 'そ',
+        'sya': 'しゃ',
+        'syu': 'しゅ',
+        'sye': 'しぇ',
+        'syo': 'しょ',
+        'sha': 'しゃ',
+        'shi': 'し',
+        'shu': 'しゅ',
+        'she': 'しぇ',
+        'sho': 'しょ',
+
+        'za': 'ざ',
+        'zi': 'じ',
+        'zu': 'ず',
+        'ze': 'ぜ',
+        'zo': 'ぞ',
+        'ja': 'じゃ',
+        'ji': 'じ',
+        'ju': 'じゅ',
+        'je': 'じぇ',
+        'jo': 'じょ',
+        'zya': 'じゃ',
+        'zyu': 'じゅ',
+        'zye': 'じぇ',
+        'zyo': 'じょ',
+
+        'ta': 'た',
+        'ti': 'ち',
+        'tu': 'つ',
+        'te': 'て',
+        'to': 'と',
+        'thi': 'てぃ',
+        'cha': 'ちゃ',
+        'chi': 'ち',
+        'chu': 'ちゅ',
+        'che': 'ちぇ',
+        'cho': 'ちょ',
+        'tsa': 'つぁ',
+        'tsi': 'つぃ',
+        'tsu': 'つ',
+        'tse': 'つぇ',
+        'tso': 'つぉ',
+        'da': 'だ',
+        'di': 'ぢ',
+        'du': 'づ',
+        'de': 'で',
+        'do': 'ど',
+        'dhi': 'でぃ',
+
+        'na': 'な',
+        'ni': 'に',
+        'nu': 'ぬ',
+        'ne': 'ね',
+        'no': 'の',
+        'nya': 'にゃ',
+        'nyu': 'にゅ',
+        'nye': 'にぇ',
+        'nyo': 'にょ',
+
+        'ha': 'は',
+        'hi': 'ひ',
+        'hu': 'ふ',
+        'he': 'へ',
+        'ho': 'ほ',
+        'fa': 'ふぁ',
+        'fi': 'ふぃ',
+        'fu': 'ふ',
+        'fe': 'ふぇ',
+        'fo': 'ふぉ',
+        'hya': 'ひゃ',
+        'hyu': 'ひゅ',
+        'hye': 'ひぇ',
+        'hyo': 'ひょ',
+        'ba': 'ば',
+        'bi': 'び',
+        'bu': 'ぶ',
+        'be': 'べ',
+        'bo': 'ぼ',
+        'pa': 'ぱ',
+        'pi': 'ぴ',
+        'pu': 'ぷ',
+        'pe': 'ぺ',
+        'po': 'ぽ',
+        'pya': 'ぴゃ',
+        'pyu': 'ぴゅ',
+        'pyo': 'ぴょ',
+
+        'ma': 'ま',
+        'mi': 'み',
+        'mu': 'む',
+        'me': 'め',
+        'mo': 'も',
+        'mya': 'みゃ',
+        'myu': 'みゅ',
+        'mye': 'みぇ',
+        'myo': 'みょ',
+
+        'ya': 'や',
+        'yu': 'ゆ',
+        'ye': 'いぇ',
+        'yo': 'よ',
+
+        'ra': 'ら',
+        'ri': 'り',
+        'ru': 'る',
+        're': 'れ',
+        'ro': 'ろ',
+        'rya': 'りゃ',
+        'ryu': 'りゆ',
+        'rye': 'りぇ',
+        'ryo': 'りょ',
+
+        'wa': 'わ',
+        'wi': 'うぃ',
+        'we': 'うぇ',
+        'wo': 'を',
+        'nn': 'ん',
+        'wha': 'うぁ',
+        'whi': 'うぃ',
+        'whe': 'うぇ',
+        'who': 'うぉ',
+
+        'xa': 'ぁ',
+        'xi': 'ぃ',
+        'xu': 'ぅ',
+        'xe': 'ぇ',
+        'xo': 'ぉ',
+        'xtu': 'っ',
+        'xya': 'ゃ',
+        'xyu': 'ゅ',
+        'xyo': 'ょ',
+
+        'zh': '←',
+        'zj': '↓',
+        'zk': '↑',
+        'zl': '→',
+
+        ',': '、',
+        '.': '。',
+        '/': '・',
+        '?': '？',
+        '!': '！',
+        '-': 'ー',
+        '[': '「',
+        ']': '」',
+        }
+
+def convert(romaji_preedit):
+    converted = romaji_table.get(romaji_preedit)
+    if converted:
+        return converted, ''
+
+    if len(romaji_preedit) == 3:
+        # romaji_tableに4文字以上のローマ字を変換するルールは存在しないため
+        # 何もせずpreeditを空文字に戻す
+        return '', ''
+
+    if len(romaji_preedit) >= 2 and romaji_preedit[0] == 'n':
+        if romaji_preedit[1] == 'y':
+            # にゃ行なら何もしない
+            return '', romaji_preedit
+        else:
+            return 'ん', romaji_preedit[1:]
+
+    if len(romaji_preedit) >= 2 and \
+        romaji_preedit[0] == romaji_preedit[1]:
+            return 'っ', romaji_preedit[1:]
+
+    return '', romaji_preedit

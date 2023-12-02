@@ -21,7 +21,7 @@
 # for python2
 from __future__ import print_function
 
-import enchant
+import romaji
 
 from gi.repository import GLib
 from gi.repository import IBus
@@ -31,23 +31,33 @@ keysyms = IBus
 
 class EngineEnchant(IBus.Engine):
     __gtype_name__ = 'EngineEnchant'
-    __dict = enchant.Dict("en")
+    # __dict = enchant.Dict("en")
 
     def __init__(self):
         super(EngineEnchant, self).__init__()
         self.__is_invalidate = False
         self.__preedit_string = ""
-        self.__lookup_table = IBus.LookupTable.new(10, 0, True, True)
+        # self.__lookup_table = IBus.LookupTable.new(10, 0, True, True)
         self.__prop_list = IBus.PropList()
         self.__prop_list.append(IBus.Property(key="test", icon="ibus-local"))
+
+        self.romaji_preedit = ''
+
         print("Create EngineEnchant OK")
 
     def do_process_key_event(self, keyval, keycode, state):
         print("process_key_event(%04x, %04x, %04x)" % (keyval, keycode, state))
+
         # ignore key release events
         is_press = ((state & IBus.ModifierType.RELEASE_MASK) == 0)
         if not is_press:
             return False
+
+        result = self.romaji_input(keyval, keycode, state)
+        self.__update()
+        return result
+
+        self.print_surrounding_text()
 
         if self.__preedit_string:
             if keyval == keysyms.Return:
@@ -62,10 +72,6 @@ class EngineEnchant(IBus.Engine):
                 self.__invalidate()
                 return True
             elif keyval == keysyms.space:
-                if self.__lookup_table.get_number_of_candidates() > 0:
-                    self.__commit_string(self.__lookup_table.get_current_candidate().text)
-                else:
-                    self.__commit_string(self.__preedit_string)
                 return False
             elif keyval >= 49 and keyval <= 57:
                 #keyval >= keysyms._1 and keyval <= keysyms._9
@@ -102,6 +108,31 @@ class EngineEnchant(IBus.Engine):
 
         return False
 
+    def romaji_input(self, keyval, keycode, state):
+        if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.MOD1_MASK) != 0:
+            return False
+
+        if self.romaji_preedit and keyval == keysyms.BackSpace:
+            self.romaji_preedit = self.romaji_preedit[:-1]
+            return True
+
+        if keyval in range(keysyms.a, keysyms.z + 1) or \
+                chr(keyval) in '.,':
+            self.romaji_preedit += chr(keyval)
+            self.convert_romaji()
+            return True
+        return False
+
+    def convert_romaji(self):
+        converted_hiragana, new_preedit = romaji.convert(self.romaji_preedit)
+        self.append_hiragana_preedit(converted_hiragana)
+        self.romaji_preedit = new_preedit
+
+    def append_hiragana_preedit(self, hiragana):
+        print('append:', hiragana)
+        self.commit_text(IBus.Text.new_from_string(hiragana))
+        print(hiragana)
+
     def __invalidate(self):
         if self.__is_invalidate:
             return
@@ -110,27 +141,15 @@ class EngineEnchant(IBus.Engine):
 
 
     def do_page_up(self):
-        if self.__lookup_table.page_up():
-            self.page_up_lookup_table()
-            return True
         return False
 
     def do_page_down(self):
-        if self.__lookup_table.page_down():
-            self.page_down_lookup_table()
-            return True
         return False
 
     def do_cursor_up(self):
-        if self.__lookup_table.cursor_up():
-            self.cursor_up_lookup_table()
-            return True
         return False
 
     def do_cursor_down(self):
-        if self.__lookup_table.cursor_down():
-            self.cursor_down_lookup_table()
-            return True
         return False
 
     def __commit_string(self, text):
@@ -139,42 +158,36 @@ class EngineEnchant(IBus.Engine):
         self.__update()
 
     def __update(self):
-        preedit_len = len(self.__preedit_string)
+        preedit_len = len(self.romaji_preedit)
         attrs = IBus.AttrList()
-        self.__lookup_table.clear()
-        if preedit_len > 0:
-            if not self.__dict.check(self.__preedit_string):
-                attrs.append(IBus.Attribute.new(IBus.AttrType.FOREGROUND,
-                        0xff0000, 0, preedit_len))
-                for text in self.__dict.suggest(self.__preedit_string):
-                    self.__lookup_table.append_candidate(IBus.Text.new_from_string(text))
-        text = IBus.Text.new_from_string(self.__preedit_string)
+        text = IBus.Text.new_from_string(self.romaji_preedit)
         text.set_attributes(attrs)
         self.update_auxiliary_text(text, preedit_len > 0)
 
         attrs.append(IBus.Attribute.new(IBus.AttrType.UNDERLINE,
                 IBus.AttrUnderline.SINGLE, 0, preedit_len))
-        text = IBus.Text.new_from_string(self.__preedit_string)
+        text = IBus.Text.new_from_string(self.romaji_preedit)
         text.set_attributes(attrs)
         self.update_preedit_text(text, preedit_len, preedit_len > 0)
-        self.__update_lookup_table()
-        self.__is_invalidate = False
 
-    def __update_lookup_table(self):
-        visible = self.__lookup_table.get_number_of_candidates() > 0
-        self.update_lookup_table(self.__lookup_table, visible)
-
+    def print_surrounding_text(self):
+        surrounding_text = self.get_surrounding_text()
+        print(f'surrounding text: {str(surrounding_text.text.text)}, {surrounding_text.cursor_pos}, {surrounding_text.anchor_pos}')
 
     def do_focus_in(self):
         print("focus_in")
         self.register_properties(self.__prop_list)
+        self.print_surrounding_text()
 
     def do_focus_out(self):
+        self.romaji_preedit = ''
+        self.__update()
         print("focus_out")
 
     def do_reset(self):
+        self.romaji_preedit = ''
+        self.__update()
         print("reset")
 
     def do_property_activate(self, prop_name):
         print("PropertyActivate(%s)" % prop_name)
-
