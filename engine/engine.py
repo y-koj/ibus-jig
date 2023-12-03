@@ -46,7 +46,6 @@ class EngineEnchant(IBus.Engine):
         self.__prop_list = IBus.PropList()
         self.__prop_list.append(IBus.Property(key="test", icon="ibus-local"))
 
-        self.n_chatgpt_called = 0
         self.semaphore = Semaphore()
         self.conversion_thread = None
 
@@ -129,7 +128,7 @@ class EngineEnchant(IBus.Engine):
             return self.commit_all()
 
         if keyval in range(keysyms.a, keysyms.z + 1) or \
-                chr(keyval) in '.,/?-':
+                chr(keyval) in '.,/?!-[]':
             self.romaji_preedit += chr(keyval)
             self.convert_romaji()
             return True
@@ -138,7 +137,7 @@ class EngineEnchant(IBus.Engine):
             self.convert_hiragana()
             return True
 
-        if keyval < 128 and self.romaji_preedit != '':
+        if keyval < 128 and self.romaji_preedit == '':
             self.append_hiragana_preedit(chr(keyval))
             return True
 
@@ -192,8 +191,7 @@ class EngineEnchant(IBus.Engine):
         self.append_hiragana_preedit(converted_hiragana)
 
     def convert_hiragana_via_gpt(self, text):
-        self.n_chatgpt_called += 1
-        if self.n_chatgpt_called > 10:
+        if text == '':
             return
 
         client = OpenAI(
@@ -257,7 +255,7 @@ class EngineEnchant(IBus.Engine):
         if len(self.hiragana_preedits) == 0:
             self.hiragana_preedits = ['']
         self.hiragana_preedits[-1] += hiragana
-        if hiragana in ['。', '？']:
+        if hiragana in ['。', '？', '！']:
             self.hiragana_preedits.append('')
         if self.should_convert_hiragana():
             self.convert_hiragana()
@@ -296,9 +294,6 @@ class EngineEnchant(IBus.Engine):
         attrs = IBus.AttrList()
         attrs.append(IBus.Attribute.new(IBus.AttrType.UNDERLINE,
                 IBus.AttrUnderline.SINGLE, 0, len(text_str)))
-        attrs.append(IBus.Attribute.new(IBus.AttrType.FOREGROUND,
-                # ARGB = (FF, 30, 30, 30)
-                0xff00ff00, 0, len(text_str)))
 
         text = IBus.Text.new_from_string(text_str)
         text.set_attributes(attrs)
