@@ -24,6 +24,7 @@ from __future__ import print_function
 import config
 import romaji
 
+from sys import stderr
 from threading import Thread, Semaphore
 
 from gi.repository import GLib
@@ -48,6 +49,7 @@ class EngineEnchant(IBus.Engine):
 
         self.semaphore = Semaphore()
         self.conversion_thread = None
+        self.input_mode = 'romaji'
 
         self.converting_text = ''
         self.converted_text = ''
@@ -55,6 +57,23 @@ class EngineEnchant(IBus.Engine):
         self.romaji_preedit = ''
 
         print("Create EngineEnchant OK")
+
+    def warn(self, message):
+        print(message, file=stderr)
+
+    def switch_input_mode(self):
+        if self.input_mode == 'direct':
+            self.input_mode = 'romaji'
+            return
+
+        if self.input_mode == 'romaji':
+            self.commit_all()
+            self.input_mode = 'direct'
+            return
+
+        warn(f'switch_input_mode: Unrecognized input mode {self.input_mode}')
+        self.input_mode = direct
+        return
 
     def do_process_key_event(self, keyval, keycode, state):
         print("process_key_event(%04x, %04x, %04x)" % (keyval, keycode, state))
@@ -64,57 +83,27 @@ class EngineEnchant(IBus.Engine):
         if not is_press:
             return False
 
-        result = self.romaji_input(keyval, keycode, state)
+        # 入力モードの切り替え
+        # Ctrl+spaceなどにも対応させたい
+        if keyval == keysyms.Zenkaku_Hankaku or \
+                keyval == keysyms.space and (state & IBus.ModifierType.CONTROL_MASK) > 0:
+            self.switch_input_mode()
+            self.__update()
+            return True
+
+        result = False
+        print(self.input_mode)
+        if self.input_mode == 'direct':
+            result = self.direct_input(keyval, keycode, state)
+        elif self.input_mode == 'romaji':
+            result = self.romaji_input(keyval, keycode, state)
+        else:
+            self.warn('Unrecognized input mode')
+
         self.__update()
         return result
 
-        if self.__preedit_string:
-            if keyval == keysyms.Return:
-                self.__commit_string(self.__preedit_string)
-                return True
-            elif keyval == keysyms.Escape:
-                self.__preedit_string = ""
-                self.__update()
-                return True
-            elif keyval == keysyms.BackSpace:
-                self.__preedit_string = self.__preedit_string[:-1]
-                self.__invalidate()
-                return True
-            elif keyval == keysyms.space:
-                return False
-            elif keyval >= 49 and keyval <= 57:
-                #keyval >= keysyms._1 and keyval <= keysyms._9
-                index = keyval - keysyms._1
-                candidates = self.__lookup_table.get_canidates_in_current_page()
-                if index >= len(candidates):
-                    return False
-                candidate = candidates[index].text
-                self.__commit_string(candidate)
-                return True
-            elif keyval == keysyms.Page_Up or keyval == keysyms.KP_Page_Up:
-                self.page_up()
-                return True
-            elif keyval == keysyms.Page_Down or keyval == keysyms.KP_Page_Down:
-                self.page_down()
-                return True
-            elif keyval == keysyms.Up:
-                self.cursor_up()
-                return True
-            elif keyval == keysyms.Down:
-                self.cursor_down()
-                return True
-            elif keyval == keysyms.Left or keyval == keysyms.Right:
-                return True
-        if keyval in range(keysyms.a, keysyms.z + 1) or \
-            keyval in range(keysyms.A, keysyms.Z + 1):
-            if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.MOD1_MASK) == 0:
-                self.__preedit_string += chr(keyval)
-                self.__invalidate()
-                return True
-        else:
-            if keyval < 128 and self.__preedit_string:
-                self.__commit_string(self.__preedit_string)
-
+    def direct_input(self, keyval, keycode, state):
         return False
 
     def romaji_input(self, keyval, keycode, state):
@@ -144,7 +133,7 @@ class EngineEnchant(IBus.Engine):
         return False
 
     def commit_str(self, text_str):
-        self.commit_text(IBus.Text(text_str))
+        self.commit_text(IBus.Text.new_from_string(text_str))
 
     def commit_all(self):
         if self.conversion_thread:
@@ -233,7 +222,7 @@ class EngineEnchant(IBus.Engine):
                 self.converted_text = text_from_gpt
                 self.__update()
                 # GLib.idle_add(self.__update)
-        self.commit_text(IBus.Text(text_from_gpt))
+        self.commit_text(IBus.Text.new_from_string(text_from_gpt))
         self.converting_text = ''
         self.converted_text = ''
 
